@@ -1,14 +1,26 @@
 window.onload = function(){
     var canvas = document.getElementById('board');
     var context = canvas.getContext('2d');
+    var hasStarted = false;
     var brickWidth = 60;
     var brickMargin = 10;
+    var playerBaseLine = 50;
+    var ballRadius = 10;
+    var lives = [];
+    var bricks = [];
+    var boardWidth;
+    var boardHeight;
     var objects;
     var ball;
     var player;
+    var frictionHandler;
+    var gameLoopHandler;
 
     canvas.width = 1024;
     canvas.height = 576;
+
+    boardHeight = canvas.height - 50;
+    boardWidth = canvas.width;
 
     // Talking about closures, anything that was declared outside of a function is accessible by it.
     function resetContextStyle(){
@@ -16,11 +28,16 @@ window.onload = function(){
       context.strokeStyle = 'black';
     }
 
+    function removeFrom(array, index){
+      objects.splice(objects.indexOf(array[index]), 1);
+      array.splice(index, 1);
+    }
+
     function createBall(){
       return {
-        x: canvas.width / 2,
-        y: canvas.height - 50,
-        radius: 10,
+        x: boardWidth / 2,
+        y: boardHeight - playerBaseLine,
+        radius: ballRadius,
         speedx: 0,
         speedy: 0,
         // Talking about attaching functions to objects and using "this"
@@ -58,20 +75,40 @@ window.onload = function(){
           }
         },
         update: function(){
+          if(!hasStarted)
+            return;
+
           this.x += this.speedx;
           this.y += this.speedy;
-          this.checkWallCollision('x', canvas.width);
-          this.checkWallCollision('y', canvas.height);
+
+          if(this.y - this.radius * 2 > boardHeight - playerBaseLine){
+            removeFrom(lives, lives.length - 1);
+
+            if(lives.length !== 0){
+              resetPlayerAndBall(lives.length);
+            }
+            else{
+              alert('Game Over');
+              init();
+            }
+          }
+
+          this.checkWallCollision('x', boardWidth);
+          this.checkWallCollision('y', boardHeight);
 
           // Talking about context, and what happens to callbacks and their context.
           var actualBall = this;
 
           objects.forEach(function(object){
             // Talking about the equality operator
-            if(object !== actualBall){
+            if(object !== actualBall && object.isInBoard){
               actualBall.checkCollision(object);
             }
           });
+
+          if(bricks.length === 0){
+            alert('You won!');
+          }
         },
         setSpeed: function(x, y){
           this.speedx = x;
@@ -82,11 +119,12 @@ window.onload = function(){
 
     function createPlayer() {
       return {
-        x: canvas.width / 2,
-        y: canvas.height - 40,
-        width: 80,
+        x: boardWidth / 2,
+        y: boardHeight - (playerBaseLine - ballRadius),
+        width: 100,
         height: 10,
         speedX: 0,
+        isInBoard: true,
         render: function(){
           context.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
         },
@@ -105,8 +143,8 @@ window.onload = function(){
         update: function(){
           this.x += this.speedX;
 
-          if(this.x + this.width / 2 >= canvas.width){
-            this.x = canvas.width - this.width / 2;
+          if(this.x + this.width / 2 >= boardWidth){
+            this.x = boardWidth - this.width / 2;
             this.setSpeed(0);
           }
 
@@ -116,7 +154,13 @@ window.onload = function(){
           }
         },
         setSpeed: function(x){
-          this.speedX = x;
+          if(x !== 0){
+            var direction = Math.abs(x)/x;
+            this.speedX = Math.floor(Math.min(Math.abs(x), 35)) * direction;
+          }
+          else{
+            this.speedX = 0;
+          }
         },
         collidedWithBall: function(){ }
       };
@@ -131,6 +175,7 @@ window.onload = function(){
           y: y,
           width: 60,
           height: 20,
+          isInBoard: true,
           bottom: function(){
             return this.y + this.height;
           },
@@ -160,9 +205,38 @@ window.onload = function(){
             resetContextStyle();
           },
           collidedWithBall: function(){
-            objects.splice(objects.indexOf(this), 1);
+            removeFrom(bricks, bricks.indexOf(this));
           },
           update: function(){}
+      };
+    }
+
+    function createHeart(x){
+      return {
+        x: x,
+        y: boardHeight + 10,
+        isInBoard: false,
+        render: function(){
+          // Talking about arrays and multi-dimensional arrays are just arrays within arrays.
+          var pixels = [['white', 'black', 'black', 'white', 'white', 'white', 'black', 'black', 'white'],
+                        ['black', 'red', 'red', 'black', 'white', 'black', 'red', 'red', 'black'],
+                        ['black', 'red', 'red', 'red', 'black', 'red', 'red', 'red', 'black'],
+                        ['black', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'black'],
+                        ['white', 'black', 'red', 'red', 'red', 'red', 'red', 'black', 'white'],
+                        ['white', 'white', 'black', 'red', 'red', 'red', 'black', 'white', 'white'],
+                        ['white', 'white', 'white', 'black', 'red', 'black', 'white', 'white', 'white'],
+                        ['white', 'white', 'white', 'white', 'black', 'white', 'white', 'white', 'white']];
+          var heart = this;
+          pixels.forEach(function(row, rowIndex){
+            row.forEach(function(pixelColor, columnIndex){
+              context.fillStyle = pixelColor;
+              context.fillRect(heart.x + (columnIndex * 5), heart.y + (rowIndex * 5), 5, 5);
+            });
+          });
+
+          resetContextStyle();
+        },
+        update: function(){}
       };
     }
 
@@ -170,7 +244,7 @@ window.onload = function(){
       context.fillStyle = 'white';
       context.fillRect(0, 0, canvas.width, canvas.height);
       resetContextStyle();
-      context.strokeRect(0, 0, canvas.width, canvas.height);
+      context.strokeRect(0, 0, boardWidth, boardHeight);
     }
 
     function refresh(){
@@ -181,8 +255,6 @@ window.onload = function(){
       });
     }
 
-    var hasStarted = false;
-    var frictionHandler;
     function clearFrictionHandler(){
       clearInterval(frictionHandler);
       frictionHandler = undefined;
@@ -194,14 +266,14 @@ window.onload = function(){
       // Left (37 - Right arrow)
       37: function(){
         if(hasStarted){
-          player.setSpeed(player.speedX - 3);
+          player.setSpeed(player.speedX - 8);
           clearFrictionHandler();
         }
       },
       // Right (39 - Right arrow)
       39: function(){
         if(hasStarted){
-          player.setSpeed(player.speedX + 3);
+          player.setSpeed(player.speedX + 8);
           clearFrictionHandler();
         }
       },
@@ -219,7 +291,7 @@ window.onload = function(){
 
     // Talking about event driven development
     window.addEventListener('keydown', function(event){
-        // Talking about "truthy" and "falsy" values
+        // Talking about "truthy" and "falsy" values and return value from logical operators
         (actions[event.keyCode] || function(){})();
     });
 
@@ -231,33 +303,66 @@ window.onload = function(){
               return;
             }
             player.setSpeed(player.speedX > 0 ? player.speedX - 1 : player.speedX + 1);
-          });
+          }, 5);
         }
     });
 
-    var gameLoop;
+    function addBricks(){
+        for(var brickIndex = 1; brickIndex < 75; brickIndex++){
+          var x = -60 + (brickIndex * (brickWidth + brickMargin)) % boardWidth;
+
+          // Making sure that the brick doesn't exceed the board.
+          if(x < brickWidth + brickMargin || boardWidth - x < brickWidth + brickMargin){
+            continue;
+          }
+
+          var y = 60 + Math.floor((brickIndex * (brickWidth + brickMargin)) / boardWidth) * 30;
+
+          // Talking about arrays, continue - they can act like queues with push/pop functions.
+          bricks.push(createBrick(x, y));
+          objects.push(bricks[bricks.length - 1]);
+        }
+    }
+
+    // Talking about function parameters and overloading
+    function resetPlayerAndBall(numberOfLives){
+      hasStarted = false;
+      numberOfLives = numberOfLives || 3;
+      ball = createBall();
+      player = createPlayer();
+
+      // Talking about arrays, continue - the opposite of pop/push.
+      objects.shift();
+      objects.shift();
+      objects.unshift(player);
+      objects.unshift(ball);
+
+      while(lives.length > 0){
+        removeFrom(lives, 0);
+      }
+
+      for (var life = 0; life < numberOfLives; life++) {
+        lives.push(createHeart(life * 50));
+        objects.push(lives[lives.length - 1]);
+      }
+    }
 
     function init(){
       ball = createBall();
       player = createPlayer();
-      objects = [ball, player];
 
-      for(var brickIndex = 1; brickIndex < 104; brickIndex++){
-        var x = -60 + (brickIndex * (brickWidth + brickMargin)) % canvas.width;
-        if(x < brickWidth + brickMargin || canvas.width - x < brickWidth + brickMargin){
-          continue;
-        }
-        var y = 30 + Math.floor((brickIndex * (brickWidth + brickMargin)) / canvas.width) * 30;
-        objects.push(createBrick(x, y))
-      }
+      // Placeholders for the player and ball.
+      objects = [{}, {}];
+      resetPlayerAndBall();
+      addBricks();
 
-      if (gameLoop){
-        clearInterval(gameLoop);
+      if (gameLoopHandler){
+        clearInterval(gameLoopHandler);
       }
 
       // Talking about using functions as objects, it's basically a pointer object to a function.
       // Also talking about the event loop and one thread and a-synchronicity
-      gameLoop = setInterval(refresh, 40);
+      gameLoopHandler = setInterval(refresh, 40);
     }
 
     init();
