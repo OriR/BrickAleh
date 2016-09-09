@@ -216,15 +216,22 @@ window.onload = function(){
         x: x,
         y: boardHeight + 10,
         isInBoard: false,
+        currentHue: 0,
         render: function(){
+
+          // Just for fun, nothing special here.
+          var paddedHue = '00'.substring(0, 2 - (this.currentHue + '').length) + this.currentHue
+          var redHue = '#ff' + paddedHue + paddedHue;
+          this.currentHue = (this.currentHue + 4) % 60;
+
           // Talking about arrays and multi-dimensional arrays are just arrays within arrays.
           var pixels = [['white', 'black', 'black', 'white', 'white', 'white', 'black', 'black', 'white'],
-                        ['black', 'red', 'red', 'black', 'white', 'black', 'red', 'red', 'black'],
-                        ['black', 'red', 'red', 'red', 'black', 'red', 'red', 'red', 'black'],
-                        ['black', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'black'],
-                        ['white', 'black', 'red', 'red', 'red', 'red', 'red', 'black', 'white'],
-                        ['white', 'white', 'black', 'red', 'red', 'red', 'black', 'white', 'white'],
-                        ['white', 'white', 'white', 'black', 'red', 'black', 'white', 'white', 'white'],
+                        ['black', redHue, redHue, 'black', 'white', 'black', redHue, redHue, 'black'],
+                        ['black', redHue, redHue, redHue, 'black', redHue, redHue, redHue, 'black'],
+                        ['black', redHue, redHue, redHue, redHue, redHue, redHue, redHue, 'black'],
+                        ['white', 'black', redHue, redHue, redHue, redHue, redHue, 'black', 'white'],
+                        ['white', 'white', 'black', redHue, redHue, redHue, 'black', 'white', 'white'],
+                        ['white', 'white', 'white', 'black', redHue, 'black', 'white', 'white', 'white'],
                         ['white', 'white', 'white', 'white', 'black', 'white', 'white', 'white', 'white']];
           var heart = this;
           pixels.forEach(function(row, rowIndex){
