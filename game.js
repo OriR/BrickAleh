@@ -7,6 +7,7 @@ window.onload = function(){
     var playerBaseLine = 50;
     var ballRadius = 10;
     var maxNumberOfLives = 3;
+    var duration = 5;
     var lives = [];
     var bricks = [];
     var boardWidth;
@@ -16,6 +17,7 @@ window.onload = function(){
     var player;
     var actions;
     var gameLoopHandler;
+    var frictionHandler;
 
     canvas.width = 1024;
     canvas.height = 576;
@@ -122,6 +124,7 @@ window.onload = function(){
 
            if(bricks.length === 0){
              alert('You won!');
+             init();
            }
         },
         setSpeed: function(x, y){
@@ -231,15 +234,27 @@ window.onload = function(){
         x: x,
         y: boardHeight + 10,
         isInBoard: false,
+        currentShadeIndex: 1,
         render: function(){
-          var pixels = [['white', 'black', 'black', 'white', 'white', 'white', 'black', 'black', 'white'],
-                        ['black', 'red', 'red', 'black', 'white', 'black', 'red', 'red', 'black'],
-                        ['black', 'red', 'red', 'red', 'black', 'red', 'red', 'red', 'black'],
-                        ['black', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'black'],
-                        ['white', 'black', 'red', 'red', 'red', 'red', 'red', 'black', 'white'],
-                        ['white', 'white', 'black', 'red', 'red', 'red', 'black', 'white', 'white'],
-                        ['white', 'white', 'white', 'black', 'red', 'black', 'white', 'white', 'white'],
-                        ['white', 'white', 'white', 'white', 'black', 'white', 'white', 'white', 'white']];
+          function redishHue(hue, multiplier){
+            var paddedHue = '000'.substring(0, 2 - (hue * multiplier + '').length) + hue * multiplier;
+            return 'rgb(255,' + paddedHue + ',' +  paddedHue + ')';
+          }
+          var hue = Math.ceil(this.currentShadeIndex / 50) * 50;
+          var redHue = redishHue(hue, 1);
+          var pinkHue = redishHue(hue, 1.5);
+          var whiteHue = redishHue(hue, 2);
+          var white = redishHue(hue, 2.5);
+          this.currentShadeIndex = ((this.currentShadeIndex + 1) % 100) + 1;
+
+          var pixels = [['white', 'black', 'black', 'white', 'white', 'white' , 'black'  , 'black'  , 'white'],
+                        ['black', 'red'  , 'red'  , 'black', 'white', 'black' , white    , white    , 'black'],
+                        ['black', 'red'  , 'red'  , 'red'  , 'black', pinkHue , whiteHue , white    , 'black'],
+                        ['black', 'red'  , 'red'  , 'red'  , 'red'  , redHue  , pinkHue  , whiteHue , 'black'],
+                        ['white', 'black', 'red'  , 'red'  , 'red'  , 'red'   , redHue   , 'black'  , 'white'],
+                        ['white', 'white', 'black', 'red'  , 'red'  , 'red'   , 'black'  , 'white'  , 'white'],
+                        ['white', 'white', 'white', 'black', 'red'  , 'black' , 'white'  , 'white'  , 'white'],
+                        ['white', 'white', 'white', 'white', 'black', 'white' , 'white'  , 'white'  , 'white']];
 
           var heart = this;
 
@@ -277,24 +292,32 @@ window.onload = function(){
       });
     }
 
+    function clearFrictionHandler(){
+      clearInterval(frictionHandler);
+      frictionHandler = undefined;
+    }
+
     // Describing all the actions that the player can do in the game
     actions = {
       // Left (37 - Right arrow)
       37: function(){
         if(hasStarted){
-          player.setSpeed(player.speedX - 8);
+          player.setSpeed(player.speedX - 2 * duration);
+          clearFrictionHandler();
         }
       },
       // Right (39 - Right arrow)
       39: function(){
         if(hasStarted){
-          player.setSpeed(player.speedX + 8);
+          player.setSpeed(player.speedX + 2 * duration);
+          clearFrictionHandler();
         }
       },
       // Start game (13 - Enter)
       13: function(){
         if(!hasStarted){
-          ball.setSpeed(0, -10);
+          var direction = Math.random() > 0.5 ? 1 : -1;
+          ball.setSpeed(direction * Math.floor(Math.random() * 5), -5);
           hasStarted = true;
         }
       }
@@ -308,13 +331,23 @@ window.onload = function(){
      */
     window.addEventListener('keydown', function(event){
         (actions[event.keyCode] || function(){})();
+        duration = Math.max(1, duration - 1);
     });
 
     /**
      * Handles a keyup event and what happens each time
      */
     window.addEventListener('keyup', function(event){
-        player.setSpeed(0);
+      if(!frictionHandler){
+        frictionHandler = setInterval(function(){
+          if(player.speedX === 0){
+            clearFrictionHandler();
+            return;
+          }
+          player.setSpeed(player.speedX > 0 ? player.speedX - 1 : player.speedX + 1);
+        }, 5);
+      }
+      duration = 5;
     });
 
     /**
@@ -378,7 +411,7 @@ window.onload = function(){
         clearInterval(gameLoopHandler);
       }
 
-      gameLoopHandler = setInterval(refresh, 40);
+      gameLoopHandler = setInterval(refresh, 20);
     }
 
     // Start the game!
