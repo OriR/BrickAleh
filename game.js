@@ -6,6 +6,8 @@ window.onload = function(){
     var brickMargin = 10;
     var playerBaseLine = 50;
     var ballRadius = 10;
+    var maxNumberOfLives = 3;
+    var duration = 5;
     var lives = [];
     var bricks = [];
     var boardWidth;
@@ -31,11 +33,20 @@ window.onload = function(){
     }
 
     /**
+     * Puts a given value at the end of the given array and also in the objects array.
+     */
+    function pushTo(array, value){
+      array.push(value);
+      objects.push(array[array.length - 1]);
+    }
+
+    /**
      * Takes an array and an index and removes that item from the given array
      * and the objects array.
      */
     function removeFrom(array, index){
-
+      objects.splice(objects.indexOf(array[index]), 1);
+      array.splice(index, 1);
     }
 
     /**
@@ -122,7 +133,34 @@ window.onload = function(){
      * Creates a new brick object at a given X, Y coordinates
      */
     function createBrick(x, y){
-
+      return {
+          R: Math.floor(Math.random() * 255),
+          G: Math.floor(Math.random() * 255),
+          B: Math.floor(Math.random() * 255),
+          x: x,
+          y: y,
+          width: 60,
+          height: 20,
+          isInBoard: true,
+          bottom: function(){
+            return this.y + this.height;
+          },
+          top: function(){
+            return this.y;
+          },
+          left: function(){
+            return this.x - this.width / 2;
+          },
+          right: function(){
+            return this.x + this.width / 2;
+          },
+          render: function(){
+            context.fillStyle = 'rgb(' + this.R + ',' + this.G + ',' + this.B + ')';
+            context.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+            resetContextStyle();
+          },
+          update: function(){}
+      };
     }
 
     /**
@@ -130,7 +168,33 @@ window.onload = function(){
      * at a given X position with a fixed Y position
      */
     function createHeart(x){
+      return {
+        x: x,
+        y: boardHeight + 10,
+        isInBoard: false,
+        render: function(){
+          var pixels = [['white', 'black', 'black', 'white', 'white', 'white', 'black', 'black', 'white'],
+                        ['black', 'red', 'red', 'black', 'white', 'black', 'red', 'red', 'black'],
+                        ['black', 'red', 'red', 'red', 'black', 'red', 'red', 'red', 'black'],
+                        ['black', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'black'],
+                        ['white', 'black', 'red', 'red', 'red', 'red', 'red', 'black', 'white'],
+                        ['white', 'white', 'black', 'red', 'red', 'red', 'black', 'white', 'white'],
+                        ['white', 'white', 'white', 'black', 'red', 'black', 'white', 'white', 'white'],
+                        ['white', 'white', 'white', 'white', 'black', 'white', 'white', 'white', 'white']];
 
+          var heart = this;
+
+          pixels.forEach(function(row, rowIndex){
+            row.forEach(function(pixelColor, columnIndex){
+              context.fillStyle = pixelColor;
+              context.fillRect(heart.x + (columnIndex * 5), heart.y + (rowIndex * 5), 5, 5);
+            });
+          });
+
+          resetContextStyle();
+        },
+        update: function(){}
+      };
     }
 
     /**
@@ -191,7 +255,27 @@ window.onload = function(){
      * Add all the bricks to the board
      */
     function addBricks(){
+      for(var brickIndex = 1; brickIndex < 75; brickIndex++){
+        var x = -60 + (brickIndex * (brickWidth + brickMargin)) % boardWidth;
 
+        // Making sure that the brick doesn't exceed the board.
+        if(x < brickWidth + brickMargin || boardWidth - x < brickWidth + brickMargin){
+          continue;
+        }
+
+        var y = 60 + Math.floor((brickIndex * (brickWidth + brickMargin)) / boardWidth) * 30;
+
+        pushTo(bricks, createBrick(x, y));
+      }
+    }
+
+    /**
+     * Add lives to the canvas (not the board!)
+     */
+    function addLives(){
+      for(var lifeIndex = 0; lifeIndex < maxNumberOfLives; lifeIndex++){
+        pushTo(lives, createHeart(lifeIndex * 50));
+      }
     }
 
     /**
@@ -200,6 +284,7 @@ window.onload = function(){
      */
     function resetPlayerAndBall(numberOfLives){
       hasStarted = false;
+      numberOfLives = numberOfLives || maxNumberOfLives;
       ball = createBall();
       player = createPlayer();
 
@@ -207,6 +292,10 @@ window.onload = function(){
       objects.shift();
       objects.unshift(ball);
       objects.unshift(player);
+
+      while(lives.length > numberOfLives){
+        removeFrom(lives, lives.length - 1);
+      }
     }
 
     /**
@@ -217,12 +306,13 @@ window.onload = function(){
       objects = [{}, {}];
       resetPlayerAndBall();
       addBricks();
+      addLives();
 
       if (gameLoopHandler){
         clearInterval(gameLoopHandler);
       }
 
-      gameLoopHandler = setInterval(refresh, 40);
+      gameLoopHandler = setInterval(refresh, 20);
     }
 
     // Start the game!
