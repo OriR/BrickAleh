@@ -7,6 +7,7 @@ window.onload = function(){
     var playerBaseLine = 50;
     var ballRadius = 10;
     var maxNumberOfLives = 3;
+    var duration = 5;
     var lives = [];
     var bricks = [];
     var boardWidth;
@@ -62,6 +63,37 @@ window.onload = function(){
           context.beginPath();
           context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
           context.fill();
+
+          if(bricks.length === 0){
+           alert('You won!');
+           init();
+          }
+        },
+        checkWallCollision: function(axis, boundry){
+          if(this[axis] + this.radius >= boundry){
+            this[axis] = boundry - this.radius;
+            this['speed' + axis] = -this['speed' + axis];
+          }
+          else if(this[axis] - this.radius <= 0){
+            this[axis] = this.radius;
+            this['speed' + axis] = -this['speed' + axis];
+          }
+        },
+        checkCollision: function(object){
+          function between(center, range, min, max){
+            return (center - range >= min && center - range <= max) ||
+                   (center + range >= min && center + range <= max);
+          }
+
+          // Check that either the top or bottom part of the ball are between the top and bottom of the player.
+          // And that the left and right of the ball are between the left and right of the player.
+          if(between(this.y, this.radius, object.top(), object.bottom()) &&
+             between(this.x, this.radius, object.left(), object.right())){
+               var normalizedSpeedX = Math.floor((this.x - object.x) * 15 / (this.radius + object.width / 2));
+
+               this.setSpeed(normalizedSpeedX, -this.speedy);
+               object.collidedWithBall();
+          }
         },
         update: function(){
           if(!hasStarted)
@@ -69,6 +101,30 @@ window.onload = function(){
 
           this.x += this.speedx;
           this.y += this.speedy;
+
+          if(this.y - this.radius * 2 > boardHeight - playerBaseLine){
+             removeFrom(lives, lives.length - 1);
+
+             if(lives.length !== 0){
+               resetPlayerAndBall(lives.length);
+             }
+             else{
+               alert('Game Over');
+               init();
+             }
+             return;
+           }
+
+           this.checkWallCollision('x', boardWidth);
+           this.checkWallCollision('y', boardHeight);
+
+           var actualBall = this;
+
+           objects.forEach(function(object){
+             if(object !== actualBall && object.isInBoard){
+               actualBall.checkCollision(object);
+             }
+           });
         },
         setSpeed: function(x, y){
           this.speedx = x;
@@ -119,11 +175,14 @@ window.onload = function(){
         setSpeed: function(x){
           if(x !== 0){
             var direction = Math.abs(x)/x;
-            this.speedX = Math.floor(Math.min(Math.abs(x), 35)) * direction;
+            this.speedX = Math.floor(Math.min(Math.abs(x), 50)) * direction;
           }
           else{
             this.speedX = 0;
           }
+        },
+        collidedWithBall: function(){
+
         }
       };
     }
@@ -157,6 +216,9 @@ window.onload = function(){
             context.fillStyle = 'rgb(' + this.R + ',' + this.G + ',' + this.B + ')';
             context.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
             resetContextStyle();
+          },
+          collidedWithBall: function(){
+            removeFrom(bricks, bricks.indexOf(this));
           },
           update: function(){}
       };
@@ -221,15 +283,23 @@ window.onload = function(){
     actions = {
       // Left (37 - Right arrow)
       37: function(){
-
+        if(hasStarted){
+          player.setSpeed(player.speedX - 3 * duration);
+        }
       },
       // Right (39 - Right arrow)
-      39: function(){
-
+      39: function(duration){
+        if(hasStarted){
+          player.setSpeed(player.speedX + 3 * duration);
+        }
       },
       // Start game (13 - Enter)
       13: function(){
-
+        if(!hasStarted){
+          var direction = Math.random() > 0.5 ? 1 : -1;
+          ball.setSpeed(direction * Math.floor(Math.random() * 5), -5);
+          hasStarted = true;
+        }
       }
     };
 
@@ -240,14 +310,16 @@ window.onload = function(){
      * Handles a keydown event and what happens each time
      */
     window.addEventListener('keydown', function(event){
-
+        (actions[event.keyCode] || function(){})();
+        duration = Math.max(1, duration - 1);
     });
 
     /**
      * Handles a keyup event and what happens each time
      */
     window.addEventListener('keyup', function(event){
-
+        player.setSpeed(0);
+        duration = 5;
     });
 
     /**
@@ -311,7 +383,7 @@ window.onload = function(){
         clearInterval(gameLoopHandler);
       }
 
-      gameLoopHandler = setInterval(refresh, 40);
+      gameLoopHandler = setInterval(refresh, 20);
     }
 
     // Start the game!
